@@ -131,4 +131,4 @@ def augment_dataset(input_dir, output_dir):
 
 
 if __name__ == "__main__":
-    augment_dataset("dataset/original", "dataset/augmented")
+    augment_dataset("dataset/original/test", "dataset/augmented")
