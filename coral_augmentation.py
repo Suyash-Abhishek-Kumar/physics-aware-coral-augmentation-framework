@@ -1,10 +1,11 @@
 import cv2
 import numpy as np
 import os
+import json
 import random
 
 # -----------------------------
-# IMAGE LOADER
+# LOAD IMAGE
 # -----------------------------
 def load_image(path, size=(256,256)):
     img = cv2.imread(path)
@@ -14,9 +15,15 @@ def load_image(path, size=(256,256)):
 
 
 # -----------------------------
-# 1. COLOR ATTENUATION (DEPTH SIMULATION)
-# Physics: Red light absorbed fastest underwater
-# I = I0 * exp(-beta * depth)
+# SAVE IMAGE
+# -----------------------------
+def save_image(img, path):
+    img = (img*255).astype(np.uint8)
+    cv2.imwrite(path, img)
+
+
+# -----------------------------
+# AUGMENTATIONS
 # -----------------------------
 def color_attenuation(img, depth=10):
     beta_r = 0.15
@@ -31,11 +38,6 @@ def color_attenuation(img, depth=10):
     return np.clip(result, 0, 1)
 
 
-# -----------------------------
-# 2. TURBIDITY / SCATTERING
-# Physics: Light scattering reduces contrast
-# I = I * t + A*(1-t)
-# -----------------------------
 def turbidity(img, strength=0.6):
     haze = np.ones_like(img) * 0.7
     result = img * (1-strength) + haze * strength
@@ -43,9 +45,6 @@ def turbidity(img, strength=0.6):
     return np.clip(result, 0, 1)
 
 
-# -----------------------------
-# 3. LOW LIGHT SIMULATION
-# -----------------------------
 def low_light(img, factor=0.4):
     result = img * factor
     noise = np.random.normal(0, 0.03, img.shape)
@@ -53,9 +52,6 @@ def low_light(img, factor=0.4):
     return np.clip(result, 0, 1)
 
 
-# -----------------------------
-# 4. MARINE SNOW (PARTICLE NOISE)
-# -----------------------------
 def marine_snow(img, density=0.01):
     h,w,_ = img.shape
     num_particles = int(h*w*density)
@@ -68,9 +64,6 @@ def marine_snow(img, density=0.01):
     return img
 
 
-# -----------------------------
-# 5. MOTION BLUR (UNDERWATER CAMERA)
-# -----------------------------
 def motion_blur(img, size=15):
     kernel = np.zeros((size,size))
     kernel[int((size-1)/2), :] = np.ones(size)
@@ -81,54 +74,106 @@ def motion_blur(img, size=15):
 
 
 # -----------------------------
-# DOMAIN GENERATOR (KEY MODULE)
+# MAIN PIPELINE
 # -----------------------------
-def generate_domain(img, domain="deep_water"):
-    img = img.copy()
-
-    if domain == "deep_water":
-        img = color_attenuation(img, depth=20)
-        img = turbidity(img, 0.3)
-
-    elif domain == "turbid_water":
-        img = turbidity(img, 0.7)
-        img = marine_snow(img, 0.02)
-
-    elif domain == "low_light":
-        img = low_light(img, 0.3)
-
-    elif domain == "robot_capture":
-        img = motion_blur(img)
-        img = low_light(img, 0.5)
-
-    return np.clip(img, 0, 1)
-
-
-# -----------------------------
-# SAVE IMAGE
-# -----------------------------
-def save_image(img, path):
-    img = (img*255).astype(np.uint8)
-    cv2.imwrite(path, img)
-
-
-# -----------------------------
-# BATCH AUGMENTATION PIPELINE
-# -----------------------------
-def augment_dataset(input_dir, output_dir):
-    domains = ["deep_water","turbid_water","low_light","robot_capture"]
-
+def expand_dataset(input_dir, output_dir):
     os.makedirs(output_dir, exist_ok=True)
 
-    for file in os.listdir(input_dir):
-        img_path = os.path.join(input_dir, file)
-        img = load_image(img_path)
+    metadata = []
 
-        for d in domains:
-            aug = generate_domain(img, d)
-            save_path = os.path.join(output_dir, f"{file}_{d}.png")
-            save_image(aug, save_path)
+    classes = os.listdir(input_dir)
+
+    for cls in classes:
+        input_class = os.path.join(input_dir, cls)
+        output_class = os.path.join(output_dir, cls)
+
+        os.makedirs(output_class, exist_ok=True)
+
+        images = [f for f in os.listdir(input_class) if f.lower().endswith(('.jpg','.png','.jpeg'))]
+
+        for img_name in images:
+            img_path = os.path.join(input_class, img_name)
+            img = load_image(img_path)
+
+            base_name = os.path.splitext(img_name)[0]
+
+            # ---------- ORIGINAL ----------
+            save_name = f"{base_name}_original.png"
+            save_path = os.path.join(output_class, save_name)
+            save_image(img, save_path)
+
+            metadata.append({
+                "file": save_name,
+                "class": cls,
+                "type": "original"
+            })
+
+            # ---------- 1. DEEP WATER ----------
+            depth = random.uniform(10, 25)
+            aug = color_attenuation(img, depth)
+            aug = turbidity(aug, 0.3)
+
+            save_name = f"{base_name}_deep.png"
+            save_image(aug, os.path.join(output_class, save_name))
+
+            metadata.append({
+                "file": save_name,
+                "class": cls,
+                "type": "deep_water",
+                "depth": depth
+            })
+
+            # ---------- 2. TURBID ----------
+            strength = random.uniform(0.5, 0.8)
+            aug = turbidity(img, strength)
+            aug = marine_snow(aug, 0.01)
+
+            save_name = f"{base_name}_turbid.png"
+            save_image(aug, os.path.join(output_class, save_name))
+
+            metadata.append({
+                "file": save_name,
+                "class": cls,
+                "type": "turbid_water",
+                "strength": strength
+            })
+
+            # ---------- 3. LOW LIGHT ----------
+            factor = random.uniform(0.3, 0.6)
+            aug = low_light(img, factor)
+
+            save_name = f"{base_name}_lowlight.png"
+            save_image(aug, os.path.join(output_class, save_name))
+
+            metadata.append({
+                "file": save_name,
+                "class": cls,
+                "type": "low_light",
+                "factor": factor
+            })
+
+            # ---------- 4. ROBOT ----------
+            blur_size = random.choice([5,9,15])
+            aug = motion_blur(img, blur_size)
+            aug = low_light(aug, 0.5)
+
+            save_name = f"{base_name}_robot.png"
+            save_image(aug, os.path.join(output_class, save_name))
+
+            metadata.append({
+                "file": save_name,
+                "class": cls,
+                "type": "robot_capture",
+                "blur": blur_size
+            })
+
+    # Save metadata
+    with open(os.path.join(output_dir, "metadata.json"), "w") as f:
+        json.dump(metadata, f, indent=4)
 
 
+# -----------------------------
+# RUN
+# -----------------------------
 if __name__ == "__main__":
-    augment_dataset("dataset/original/test", "dataset/augmented")
+    expand_dataset("dataset/original", "dataset/expanded_5x")
