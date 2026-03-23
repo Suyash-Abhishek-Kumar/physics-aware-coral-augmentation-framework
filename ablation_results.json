@@ -1,4 +1,9 @@
 {
+    "Original": {
+        "accuracy": 0.57,
+        "bleached_corals_recall": 0.98,
+        "healthy_corals_recall": 0.11
+    },
     "Turbid": {
         "accuracy": 0.7567567567567568,
         "bleached_corals_recall": 0.9432989690721649,
@@ -18,5 +23,10 @@
         "accuracy": 0.6243243243243243,
         "bleached_corals_recall": 0.9690721649484536,
         "healthy_corals_recall": 0.24431818181818182
+    },
+    "Full_Augmented": {
+        "accuracy": 0.98,
+        "bleached_corals_recall": 0.99,
+        "healthy_corals_recall": 0.96
     }
 }
