@@ -27,5 +27,6 @@ def split_dataset(input_dir, output_dir, split=0.8):
             os.makedirs(os.path.dirname(dst), exist_ok=True)
             shutil.copy(src, dst)
 
-
-split_dataset("dataset\\original", "dataset\\split_original")
+segment = ["deep", "lowlight", "robot", "turbid"]
+for i in segment:
+    split_dataset("dataset\\original_{}".format(i), "dataset\\split_original_{}".format(i))

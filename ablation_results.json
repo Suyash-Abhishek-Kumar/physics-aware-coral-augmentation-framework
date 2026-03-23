@@ -1,0 +1,22 @@
+{
+    "Turbid": {
+        "accuracy": 0.7567567567567568,
+        "bleached_corals_recall": 0.9432989690721649,
+        "healthy_corals_recall": 0.5511363636363636
+    },
+    "Deep": {
+        "accuracy": 0.7648648648648648,
+        "bleached_corals_recall": 0.8298969072164949,
+        "healthy_corals_recall": 0.6931818181818182
+    },
+    "LowLight": {
+        "accuracy": 0.7783783783783784,
+        "bleached_corals_recall": 0.9072164948453608,
+        "healthy_corals_recall": 0.6363636363636364
+    },
+    "Robot": {
+        "accuracy": 0.6243243243243243,
+        "bleached_corals_recall": 0.9690721649484536,
+        "healthy_corals_recall": 0.24431818181818182
+    }
+}
